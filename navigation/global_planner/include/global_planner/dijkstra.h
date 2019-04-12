@@ -73,7 +73,7 @@ class DijkstraExpansion : public Expander {
             neutral_cost_ = neutral_cost;
             priorityIncrement_ = 2 * neutral_cost_;
         }
-
+        void Reclear(){};
         void setPreciseStart(bool precise){ precise_ = precise; }
     private:
 

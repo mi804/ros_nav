@@ -57,6 +57,7 @@ class Expander {
          * @param nx The x size of the map
          * @param ny The y size of the map
          */
+        virtual void Reclear() = 0;
         virtual void setSize(int nx, int ny) {
             nx_ = nx;
             ny_ = ny;

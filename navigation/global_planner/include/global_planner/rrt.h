@@ -28,19 +28,29 @@ class Tree{
         Node *Nodes_;
         int length;
         int max_length;
-        Tree(int ns):max_length(ns){
+        Tree(int ns):max_length(ns),length(0){
             Nodes_ = new Node [max_length];
             for(int i = 0; i < max_length; i++){
                 Nodes_[i].x_ = Nodes_[i].y_ = Nodes_[i].index_ = Nodes_[i].father_ = -1;
             }
         }
+        void Clear(){
+            for(int i = 0; i < max_length; i++){
+                Nodes_[i].x_ = Nodes_[i].y_ = Nodes_[i].index_ = Nodes_[i].father_ = -1;
+            }
+            length = 0;
+        }
         int AddNode(int x, int y, int index, int father){
+            if(length == max_length){
+                ROS_ERROR("memory full");
+                return -1;
+            }
             Nodes_[length].x_ = x;
             Nodes_[length].y_ = y;
             Nodes_[length].index_ = index;
             Nodes_[length].father_ = father;
             length++;
-            return length;
+            return 0;
         }
         int Find_Near(int x, int y){
             int min_index = 0;
@@ -54,6 +64,14 @@ class Tree{
             }
             return min_index;
         }
+        bool IfExist(int index){
+            for(int i = 0; i < length; i++){
+                if(Nodes_[i].index_ == index){
+                    return true;
+                }
+            }
+            return false;
+        }
 };
 
 
@@ -66,19 +84,21 @@ class RRTExpansion : public Expander
                                 float* potential);
         bool calculatePlan(std::vector<std::pair<float, float> >& path);
         //calculatePotentials need to be rewrite
+        void Reclear();
     private:
-        int step_size;
-        int arrive_offset;
         int MyRand(int low, int high);
         bool is_legal(int ind);
         bool is_not_col(int startx, int starty, int endx, int endy);
         int toward(int startx, int starty, int endx, int endy);
+        int step_size;
+        int arrive_offset;
         int start_x;
         int start_y;
         int end_x;
         int end_y;
         Tree T;
         unsigned char* costs;
+        int end_tree_index;
 };
 
 } //end namespace global_planner

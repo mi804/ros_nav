@@ -314,21 +314,22 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     
     //mapsize
     int nx = costmap_->getSizeInCellsX(), ny = costmap_->getSizeInCellsY();
-    ROS_WARN("%d, %d", nx,ny);
+
     //make sure to resize the underlying array that Navfn uses
+    planner_->Reclear();
     p_calc_->setSize(nx, ny);
     planner_->setSize(nx, ny);
     path_maker_->setSize(nx, ny);
     potential_array_ = new float[nx * ny];
 
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
-
+    ROS_WARN("after init");
     // make plan, 计算得到peotential
     bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
                                                     nx * ny * 2, potential_array_);
-
+    ROS_WARN("found_legal: %d",found_legal);
     if(!old_navfn_behavior_)
-        planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
+    //  planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
     //这是什么
 
     //发布potential
@@ -338,7 +339,8 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     if (found_legal) {
         //extract the plan
         if (getPlanFromPotential(start_x, start_y, goal_x, goal_y, goal, plan)) {
-            // if中的是要得到plan，可以不利用potential，直接改掉里面的函数，把我们得到的path直接去生成plan
+            ROS_WARN("get_plan");
+            // if中的是要得到plan，可以不利用potential，直接改""掉里面的函数，把我们得到的path直接去生成plan
 
             //make sure the goal we push on has the same timestamp as the rest of the plan
             geometry_msgs::PoseStamped goal_copy = goal;

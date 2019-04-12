@@ -5,7 +5,7 @@ GlobalPlanner:                                  # Also see: http://wiki.ros.org/
   use_astar: false                           # Use astar's algorithm.  default true
   use_rrt: true                                 # use rrt algorithm
   use_grid_path: true                          # Create a path that follows the grid boundaries. Otherwise, use a gradient descent method, default false
-  use_path_maker: false                         # generate path by planner, not by potential descend, must for rrt
+#  use_path_maker: true          #必须这个参数也要改               # generate path by planner, not by potential descend, must for rrt
 
   allow_unknown: true                           # Allow planner to plan through unknown space, default true
                                                 # Needs to have track_unknown_space: true in the obstacle / voxel layer (in costmap_commons_param) to work

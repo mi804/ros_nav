@@ -68,6 +68,7 @@ class AStarExpansion : public Expander {
         bool calculatePlan(std::vector<std::pair<float, float> >& path){
             return false;
         }
+        void Reclear(){};
     private:
         void add(unsigned char* costs, float* potential, float prev_potential, int next_i, int end_x, int end_y);
         std::vector<Index> queue_;
