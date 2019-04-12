@@ -41,6 +41,7 @@
 #include <costmap_2d/costmap_2d.h>
 
 #include <global_planner/dijkstra.h>
+#include <global_planner/rrt.h>
 #include <global_planner/astar.h>
 #include <global_planner/grid_path.h>
 #include <global_planner/gradient_path.h>
@@ -77,11 +78,11 @@ GlobalPlanner::GlobalPlanner(std::string name, costmap_2d::Costmap2D* costmap, s
 }
 
 GlobalPlanner::~GlobalPlanner() {
-    if (p_calc_)
+    if (p_calc_)    //以及生成path ，potential的一个计算器
         delete p_calc_;
-    if (planner_)
+    if (planner_)   // 得到potential 
         delete planner_;
-    if (path_maker_)
+    if (path_maker_) // 生成path， 使用gridpath或者gradient
         delete path_maker_;
     if (dsrv_)
         delete dsrv_;
@@ -97,6 +98,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         costmap_ = costmap;
         frame_id_ = frame_id;
 
+        //map size?
         unsigned int cx = costmap->getSizeInCellsX(), cy = costmap->getSizeInCellsY();
 
         private_nh.param("old_navfn_behavior", old_navfn_behavior_, false);
@@ -106,7 +108,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
             convert_offset_ = 0.0;
 
         bool use_quadratic;
-        private_nh.param("use_quadratic", use_quadratic, true);
+        private_nh.param("use_quadratic", use_quadratic, false);
         if (use_quadratic)
             p_calc_ = new QuadraticCalculator(cx, cy);
         else
@@ -116,26 +118,59 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         private_nh.param("use_dijkstra", use_dijkstra, true);
         if (use_dijkstra)
         {
+            ROS_WARN("dijkstra has been used");
             DijkstraExpansion* de = new DijkstraExpansion(p_calc_, cx, cy);
             if(!old_navfn_behavior_)
                 de->setPreciseStart(true);
             planner_ = de;
         }
+        
+        bool use_astar;
+        private_nh.param("use_astar", use_astar, false);
+        if (use_astar)
+        {
+            if(use_dijkstra)
+            {
+                ROS_WARN("dijkstra has been used, astar won't start");
+                use_astar = false;
+            }else{
+                ROS_WARN("astar has been used");
+                planner_ = new AStarExpansion(p_calc_, cx, cy);
+            }
+        }
+// use rrt
+        bool use_rrt;
+        private_nh.param("use_rrt", use_rrt, true);
+        use_path_maker = true;
+        use_path_maker = !use_rrt;
+        if (use_rrt)
+        {
+            if(use_dijkstra || use_astar)
+            {
+                ROS_WARN("dijkstra or astar has been used, rrt won't start");
+                use_rrt =  false;                                                                            false;
+            }else{
+                //rrt codes here
+                planner_ = new RRTExpansion(p_calc_, cx, cy);
+                ROS_WARN("using rrt");
+            }                
+        }
         else
             planner_ = new AStarExpansion(p_calc_, cx, cy);
-
+        
         bool use_grid_path;
         private_nh.param("use_grid_path", use_grid_path, false);
+        //
         if (use_grid_path)
             path_maker_ = new GridPath(p_calc_);
         else
             path_maker_ = new GradientPath(p_calc_);
 
-        orientation_filter_ = new OrientationFilter();
-
+        orientation_filter_ = new OrientationFilter();   //是啥
+        //按照nav_msg的方式
         plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
-        potential_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("potential", 1);
-
+        potential_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("potential", 1);    
+        //这里可以看到potential用于 occupancy grid
         private_nh.param("allow_unknown", allow_unknown_, true);
         planner_->setHasUnknown(allow_unknown_);
         private_nh.param("planner_window_x", planner_window_x_, 0.0);
@@ -179,7 +214,7 @@ void GlobalPlanner::clearRobotCell(const geometry_msgs::PoseStamped& global_pose
 
 bool GlobalPlanner::makePlanService(nav_msgs::GetPlan::Request& req, nav_msgs::GetPlan::Response& resp) {
     makePlan(req.start, req.goal, resp.plan.poses);
-
+    //resp是需要填充的
     resp.plan.header.stamp = ros::Time::now();
     resp.plan.header.frame_id = frame_id_;
 
@@ -209,6 +244,7 @@ bool GlobalPlanner::worldToMap(double wx, double wy, double& mx, double& my) {
 
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                            std::vector<geometry_msgs::PoseStamped>& plan) {
+    // tolerance 是什么
     return makePlan(start, goal, default_tolerance_, plan);
 }
 
@@ -252,7 +288,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
         return false;
     }
     if(old_navfn_behavior_){
-        start_x = start_x_i;
+        start_x = start_x_i;      //start 的偏置
         start_y = start_y_i;
     }else{
         worldToMap(wx, wy, start_x, start_y);
@@ -275,9 +311,10 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     //clear the starting cell within the costmap because we know it can't be an obstacle
     clearRobotCell(start, start_x_i, start_y_i);
-
+    
+    //mapsize
     int nx = costmap_->getSizeInCellsX(), ny = costmap_->getSizeInCellsY();
-
+    ROS_WARN("%d, %d", nx,ny);
     //make sure to resize the underlying array that Navfn uses
     p_calc_->setSize(nx, ny);
     planner_->setSize(nx, ny);
@@ -286,17 +323,23 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
 
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
 
+    // make plan, 计算得到peotential
     bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
                                                     nx * ny * 2, potential_array_);
 
     if(!old_navfn_behavior_)
         planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
+    //这是什么
+
+    //发布potential
     if(publish_potential_)
-        publishPotential(potential_array_);
+        publishPotential(potential_array_); // publish potential到grid
 
     if (found_legal) {
         //extract the plan
         if (getPlanFromPotential(start_x, start_y, goal_x, goal_y, goal, plan)) {
+            // if中的是要得到plan，可以不利用potential，直接改掉里面的函数，把我们得到的path直接去生成plan
+
             //make sure the goal we push on has the same timestamp as the rest of the plan
             geometry_msgs::PoseStamped goal_copy = goal;
             goal_copy.header.stamp = ros::Time::now();
@@ -317,6 +360,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     return !plan.empty();
 }
 
+//怎样publish plan的
 void GlobalPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& path) {
     if (!initialized_) {
         ROS_ERROR(
@@ -338,10 +382,11 @@ void GlobalPlanner::publishPlan(const std::vector<geometry_msgs::PoseStamped>& p
 
     plan_pub_.publish(gui_path);
 }
-
+// 
 bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double goal_x, double goal_y,
                                       const geometry_msgs::PoseStamped& goal,
                                        std::vector<geometry_msgs::PoseStamped>& plan) {
+    // 这是我们最终要得到的格式：std::vector<geometry_msgs::PoseStamped>& plan
     if (!initialized_) {
         ROS_ERROR(
                 "This planner has not been initialized yet, but it is being used, please call initialize() before use");
@@ -354,13 +399,23 @@ bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double 
     plan.clear();
 
     std::vector<std::pair<float, float> > path;
-
-    if (!path_maker_->getPath(potential_array_, start_x, start_y, goal_x, goal_y, path)) {
-        ROS_ERROR("NO PATH!");
-        return false;
+    //开始是用的gridpath
+    if(use_path_maker){
+        if (!path_maker_->getPath(potential_array_, start_x, start_y, goal_x, goal_y, path)) { 
+            ROS_ERROR("NO PATH from path_maker");
+            return false;
+        }
+    }else{
+        //直接生成path
+        if(!planner_->calculatePlan(path)){
+            ROS_ERROR("NO PATH from planner");
+            return false;
+        }
     }
 
+    //我们可以直接得到gridpath ，而不用path_maker，但要按照格式
     ros::Time plan_time = ros::Time::now();
+    // path是从尾到头，plan是从头到尾
     for (int i = path.size() -1; i>=0; i--) {
         std::pair<float, float> point = path[i];
         //convert the plan to world coordinates
@@ -385,7 +440,7 @@ bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double 
     return !plan.empty();
 }
 
-void GlobalPlanner::publishPotential(float* potential)
+void GlobalPlanner::publishPotential(float* potential)     //potential的处理方式
 {
     int nx = costmap_->getSizeInCellsX(), ny = costmap_->getSizeInCellsY();
     double resolution = costmap_->getResolution();
@@ -419,9 +474,10 @@ void GlobalPlanner::publishPotential(float* potential)
 
     for (unsigned int i = 0; i < grid.data.size(); i++) {
         if (potential_array_[i] >= POT_HIGH) {
-            grid.data[i] = -1;
+            grid.data[i] = -1; //未处理过
         } else
-            grid.data[i] = potential_array_[i] * publish_scale_ / max;
+            //max 是potential中非未处理的最大的
+            grid.data[i] = potential_array_[i] * publish_scale_ / max;      
     }
     potential_pub_.publish(grid);
 }

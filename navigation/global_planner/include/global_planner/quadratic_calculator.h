@@ -39,6 +39,7 @@
 #define _QUADRATIC_CALCULATOR_H
 #include<vector>
 #include<global_planner/potential_calculator.h>
+#include <algorithm>
 
 namespace global_planner {
 

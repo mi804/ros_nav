@@ -28,6 +28,7 @@
  */
 
 #include <global_planner/quadratic_calculator.h>
+#include <algorithm>
 
 namespace global_planner {
 float QuadraticCalculator::calculatePotential(float* potential, unsigned char cost, int n, float prev_potential) {

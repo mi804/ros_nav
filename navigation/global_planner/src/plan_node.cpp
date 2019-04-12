@@ -96,7 +96,7 @@ PlannerWithCostmap::PlannerWithCostmap(string name, Costmap2DROS* cmap) :
 } // namespace
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "global_planner");
+    ros::init(argc, argv, "pppp");
 
     tf2_ros::Buffer buffer(ros::Duration(10));
     tf2_ros::TransformListener tf(buffer);

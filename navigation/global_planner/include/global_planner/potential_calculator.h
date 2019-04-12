@@ -37,6 +37,7 @@
  *********************************************************************/
 #ifndef _POTENTIAL_CALCULATOR_H
 #define _POTENTIAL_CALCULATOR_H
+#include <algorithm>
 namespace global_planner {
 
 class PotentialCalculator {

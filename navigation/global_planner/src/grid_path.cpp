@@ -39,7 +39,7 @@
 #include <algorithm>
 #include <stdio.h>
 namespace global_planner {
-
+ // 此处path为vector，里面装的pair，存有x和y值
 bool GridPath::getPath(float* potential, double start_x, double start_y, double end_x, double end_y, std::vector<std::pair<float, float> >& path) {
     std::pair<float, float> current;
     current.first = end_x;

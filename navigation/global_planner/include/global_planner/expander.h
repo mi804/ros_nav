@@ -39,6 +39,7 @@
 #define _EXPANDER_H
 #include <global_planner/potential_calculator.h>
 #include <global_planner/planner_core.h>
+#include<vector>
 
 namespace global_planner {
 
@@ -50,7 +51,7 @@ class Expander {
         }
         virtual bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
                                         int cycles, float* potential) = 0;
-
+        virtual bool calculatePlan(std::vector<std::pair<float, float> >& path) = 0;
         /**
          * @brief  Sets or resets the size of the map
          * @param nx The x size of the map
