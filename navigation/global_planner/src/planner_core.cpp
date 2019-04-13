@@ -100,6 +100,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
 
         //map size?
         unsigned int cx = costmap->getSizeInCellsX(), cy = costmap->getSizeInCellsY();
+        private_nh.param("use_improved_path", use_improved_path, false);
 
         private_nh.param("old_navfn_behavior", old_navfn_behavior_, false);
         if(!old_navfn_behavior_)
@@ -139,10 +140,12 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
             }
         }
 // use rrt
-        bool use_rrt;
-        private_nh.param("use_rrt", use_rrt, true);
+        bool use_rrt ;
+        private_nh.param("use_rrt", use_rrt, false);
         use_path_maker = true;
         use_path_maker = !use_rrt;
+        private_nh.param("use_goal_guide", use_goal_guide, true);
+        private_nh.param("use_connect", use_connect, true);
         if (use_rrt)
         {
             if(use_dijkstra || use_astar)
@@ -326,7 +329,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     ROS_WARN("after init");
     // make plan, 计算得到peotential
     bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
-                                                    nx * ny * 2, potential_array_);
+                                                    nx * ny * 2, potential_array_,use_connect,use_goal_guide);
     ROS_WARN("found_legal: %d",found_legal);
     if(!old_navfn_behavior_)
     //  planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
@@ -412,6 +415,13 @@ bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double 
         if(!planner_->calculatePlan(path)){
             ROS_ERROR("NO PATH from planner");
             return false;
+        }
+        //improve the path
+        if(use_improved_path){
+            if(!planner_->improvePlan(path)){
+                ROS_WARN("PATH is not improved, using former path.");
+            }
+                ROS_WARN("IMPROVE_PATH");
         }
     }
 

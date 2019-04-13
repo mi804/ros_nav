@@ -81,8 +81,9 @@ class RRTExpansion : public Expander
     public:
         RRTExpansion(PotentialCalculator* p_calc, int nx, int ny);
         bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential);
+                                float* potential,bool,bool);
         bool calculatePlan(std::vector<std::pair<float, float> >& path);
+        bool improvePlan(std::vector<std::pair<float, float> >& path);
         //calculatePotentials need to be rewrite
         void Reclear();
     private:
@@ -96,11 +97,25 @@ class RRTExpansion : public Expander
         int start_y;
         int end_x;
         int end_y;
+        int guide_radius;
+        bool m_use_goal_guide;
+
+        float guide_rate;
         Tree T;
+        Tree ET;
+
         unsigned char* costs;
         int end_tree_index;
+        bool single_rrt(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
+                                float* potential);
+        bool connect_rrt(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
+                                float* potential);
 };
 
+
+
 } //end namespace global_planner
+
+
 
 #endif

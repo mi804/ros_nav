@@ -58,7 +58,7 @@ class DijkstraExpansion : public Expander {
         DijkstraExpansion(PotentialCalculator* p_calc, int nx, int ny);
         ~DijkstraExpansion();
         bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential);
+                                float* potential,bool,bool);
         bool calculatePlan(std::vector<std::pair<float, float> >& path){
             return false;
         }
@@ -73,7 +73,10 @@ class DijkstraExpansion : public Expander {
             neutral_cost_ = neutral_cost;
             priorityIncrement_ = 2 * neutral_cost_;
         }
-        void Reclear(){};
+        void Reclear(){}
+        bool improvePlan(std::vector<std::pair<float, float> >& path){
+            return false;
+        }
         void setPreciseStart(bool precise){ precise_ = precise; }
     private:
 

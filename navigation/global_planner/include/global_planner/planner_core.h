@@ -205,6 +205,9 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig> *dsrv_;
         void reconfigureCB(global_planner::GlobalPlannerConfig &config, uint32_t level);
         bool use_path_maker;
+        bool use_improved_path;
+        bool use_connect;
+        bool use_goal_guide;
 };
 
 } //end namespace global_planner

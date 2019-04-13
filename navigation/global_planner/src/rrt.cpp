@@ -17,62 +17,42 @@ H.Z & MK.J
 namespace global_planner {
 
 RRTExpansion::RRTExpansion(PotentialCalculator* p_calc, int xs, int ys) :
-    Expander(p_calc, xs, ys),T(ns_) {
+    Expander(p_calc, xs, ys),T(ns_),ET(ns_) {
     step_size = 5;
-    arrive_offset = 10;
+    arrive_offset = 5;
+    guide_radius = 50;
+    guide_rate = 0.5;
 }
 //Expander need to be rewrite
 
 bool RRTExpansion::calculatePotentials(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
-                                        int num_of_ptcs, float* potential) {
-    std::fill(potential, potential + ns_, POT_HIGH);
-    srand((unsigned)time(NULL));   
-    costs = costs_;
-    start_x = start_x1;
-    start_y = start_y1;
-    end_x = end_x1;
-    end_y = end_y1;
- //   ROS_WARN("into cal");
- //   std::fill(potential, potential + ns_, POT_HIGH);  // about potential
-    //num_of_ptcs = 5000
-    int arr_pot = 10;
-
-	//costs is the whole costmap
-    int start_i = toIndex(start_x, start_y);
-    potential[start_i] = arr_pot;
-
-    T.AddNode(start_x, start_y, start_i, start_i);       //father is itself
- //   ROS_WARN("start_x : %d %d",start_x,start_y);
-  //  ROS_WARN("end_x: %d %d",end_x,end_y);
-    int goal_i = toIndex(end_x, end_y);
-    int cycle = 0;
-    end_tree_index = 0;  // store the end node index
-//    ROS_WARN("into while");
-    while (true) {
-        int px = MyRand(0, nx_);
-        int py = MyRand(0, ny_);
-        // find_nearest node
-        int m_index = T.Find_Near(px, py);
-        int cx = T.Nodes_[m_index].x_;
-        int cy = T.Nodes_[m_index].y_;
-        if(is_legal(toIndex(px, py))){  // point legal
-            if(is_not_col(cx, cy, px, py)){  // no obstacle between them
-                int new_index = toward(cx, cy, px, py); // toward one step;
-                int ccx = new_index % nx_, ccy = new_index / nx_;
-                if(!T.IfExist(new_index)){
-                    T.AddNode(ccx, ccy, new_index, m_index);
-                }
-                potential[new_index] = arr_pot;
-                int dx = abs(ccx - end_x);
-                int dy = abs(ccy - end_y);
-                if(dx < arrive_offset && dy < arrive_offset){
-                    T.AddNode(end_x, end_y, goal_i, T.length - 1);  // add endnode to tree
-                    end_tree_index = T.length - 1;
-                    potential[goal_i] = arr_pot;
-                    break;            // arrive
-                }
-            }
+                                        int num_of_ptcs, float* potential,bool use_connect = false, bool use_goal_guide = true) {
+// for obs inflation
+    // int i_costs;
+    for(int i = 0; i < ns_ - nx_ - ny_; i++ ){
+        if(costs_[i] == lethal_cost_){
+            costs_[i + 1] = lethal_cost_ + 1;
+            costs_[i - 1] = lethal_cost_ + 1;
+            costs_[i + 2] = lethal_cost_ + 1;
+            costs_[i - 2] = lethal_cost_ + 1;
+            costs_[i + ny_] = lethal_cost_ + 1;
+            costs_[i - ny_] = lethal_cost_ + 1;
+            costs_[i + ny_ + 1] = lethal_cost_ + 1;
+            costs_[i + ny_ - 1] = lethal_cost_ + 1;
+            costs_[i - ny_ + 1] = lethal_cost_ + 1;
+            costs_[i - ny_ - 1] = lethal_cost_ + 1;
+            costs_[i + ny_ + 2] = lethal_cost_ + 1;
+            costs_[i + ny_ - 2] = lethal_cost_ + 1;
+            costs_[i - ny_ + 2] = lethal_cost_ + 1;
+            costs_[i - ny_ - 2] = lethal_cost_ + 1;
         }
+    }
+    ROS_ERROR("%d",lethal_cost_ + 1);
+    m_use_goal_guide = use_goal_guide;
+    if(use_connect){
+        connect_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential);
+    }else{
+        single_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential);
     }
 
     return true;
@@ -82,9 +62,9 @@ bool RRTExpansion::calculatePlan(std::vector<std::pair<float, float> >& path){
     Node *pre = &T.Nodes_[T.length - 1];
     Node *cur = &T.Nodes_[T.length - 1];
      std::pair<float, float> current;
-    // current.first = end_x;
-    // current.second = end_y;
-    // path.push_back(current);
+    current.first = end_x;
+    current.second = end_y;
+    path.push_back(current);
     int c = 0;
     while (cur->index_ != toIndex(start_x, start_y)) {
         cur = &T.Nodes_[cur->father_];
@@ -93,56 +73,55 @@ bool RRTExpansion::calculatePlan(std::vector<std::pair<float, float> >& path){
         path.push_back(current);
         c++;
     }
-    current.first = cur->x_;
-    current.second = cur->y_;
-    path.push_back(current);
+        // current.first = cur->x_;
+        // current.second = cur->y_;
+        // path.push_back(current);
     if(c++>ns_*4){
         return false;
     }
     return true;
 }
-        // pre = cur;
-        // cur = &T.Nodes_[cur->father_];
-        // int sx = pre->x_, sy = pre->y_;
-        // int ex = cur->x_, ey = pre->y_;
-        // // 从pre点到cur点中间的每个点都需要加到path中
-        // int dx = abs(sx - ex), dy = abs(sy - ey);
-        // int xd = 1, yd = 1;
-        // if(dx != 0){
-        //     xd = (ex - sx)/abs(sx - ex);
-        // }
-        // if(dy != 0){
-        //     yd = (ey - sy) / abs(sy - ey);
-        // }
-        // int cx = sx; int cy = sy;
-        // if(cx != ex){
-        //     while(true){
-        //         cx += xd;
-        //         current.first = cx;
-        //         current.second = cy;
-        //         path.push_back(current);
-        //         c++;
-        //         if(cx == ex){
-        //             break;
-        //         }
-        //     }
-        // }
-        // if(cy != ey){
-        //     while(true){
-        //         cy += yd;
-        //         current.first = cx;
-        //         current.second = cy;
-        //         path.push_back(current);
-        //         c++;
-        //         if(cy == ey){
-        //             break;
-        //         }
-        //     }
-        // }
-        // if(c++>ns_*4){
-        //     return false;
-        // }
-        // return true;
+
+bool RRTExpansion::improvePlan(std::vector<std::pair<float, float> >& path){
+    std::vector<std::pair<float, float> >::iterator cur = path.end()-1;
+    std::vector<std::pair<float, float> >::iterator pre = path.begin();
+    std::vector<std::pair<float, float> >::iterator itev = path.begin();
+    int c = 0;
+    for(itev;itev != cur;itev ++){
+        ROS_WARN("%f, %f\n",(*itev).first, (*itev).second);
+    }
+    int k=0;
+    while(true){
+            // ROS_ERROR("%d",bool(pre == path.end()-1));
+            // ROS_INFO("path.end()-1=%f, %f\n",(*(path.end()-1)).first, (*(path.end()-1)).second);
+            // ROS_INFO("pre=%f, %f\n",(*pre).first, (*pre).second);
+        for(cur; cur != pre+2; cur --){
+            // ROS_WARN("2");
+            if(is_not_col((*pre).first, (*pre).second, (*cur).first, (*cur).second)){
+                path.erase(pre+1, cur);
+                pre = cur;
+                cur = path.end()-1;
+                ROS_INFO("%d:cur=%f, %f\n",k,(*cur).first, (*cur).second);
+                ROS_INFO("%d:pre=%f, %f\n",k,(*pre).first, (*pre).second);
+                break;
+            }
+        }
+        if( (*(path.end() - 1)).first == (*pre).first && (*(path.end()-1)).second == (*pre).second ){
+            break;
+        }
+        if( (*(path.end() - 2)).first == (*pre).first && (*(path.end()-2)).second == (*pre).second ){
+            break;
+        }
+    }
+
+    for(itev = path.begin();itev != cur;itev ++){
+        ROS_WARN("%f, %f\n",(*itev).first, (*itev).second);
+    }
+    if(c++>ns_*4){
+        return false;
+    }
+    return true;
+}
 
 int RRTExpansion::MyRand(int low, int high){
 
@@ -173,8 +152,8 @@ bool RRTExpansion::is_not_col(int startx, int starty, int endx, int endy){
     double length = sqrt(dx * dx + dy * dy);
     int cycle = int(length / step);
     for(int i = 0; i < cycle; i++ ){
-        int new_x = int (startx + xd * step * i * cos(theta));
-        int new_y = int (starty + yd * step * i * sin(theta));
+        int new_x = int (startx + xd * step * i/length * dx);
+        int new_y = int (starty + yd * step * i /length * dy);
         if(!is_legal(toIndex(new_x,new_y))){
             return false;
         }
@@ -185,8 +164,7 @@ bool RRTExpansion::is_not_col(int startx, int starty, int endx, int endy){
 
 int RRTExpansion::toward(int startx, int starty, int endx, int endy){
     if(sqrt(1.0 * abs(startx - endx) + 1.0 * abs(starty - endy)) < step_size){
-        return toIndex(endx, endy);
-    }
+        return toIndex(endx, endy);}
     double xd = 1.0;
     double yd = 1.0;
     if(endx < startx) xd = -1.0;
@@ -198,7 +176,217 @@ int RRTExpansion::toward(int startx, int starty, int endx, int endy){
     int new_y = int (starty + yd * 1.0 * step_size / len * dy);
     return toIndex(new_x,new_y);
 }
-    void RRTExpansion::Reclear(){
-        T.Clear();
+void RRTExpansion::Reclear(){
+    T.Clear();
+}
+bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
+                                        int num_of_ptcs, float* potential) 
+{
+
+    T.Clear();
+    ET.Clear();
+
+    std::fill(potential, potential + ns_, POT_HIGH);
+    srand((unsigned)time(NULL));   
+    costs = costs_;
+    start_x = start_x1;
+    start_y = start_y1;
+    end_x = end_x1;
+    end_y = end_y1;
+    int arr_pot = 10;
+
+    int start_i = toIndex(start_x, start_y);
+    int goal_i = toIndex(end_x, end_y);
+    potential[start_i] = arr_pot;
+    potential[goal_i] = arr_pot;
+
+    T.AddNode(start_x, start_y, start_i, start_i);       //father is itself
+    ET.AddNode(end_x,end_y,goal_i,goal_i);
+
+    int st_node;
+    int et_node;
+    int cycle = 0;
+    ROS_WARN("into while");
+    int flag = 0;
+    while (true) {
+        if(flag == 1){
+            break;
+            //end;
+        }
+        int px = MyRand(0, nx_);
+        int py = MyRand(0, ny_);
+        if(m_use_goal_guide){
+            int random = rand() % 1000 / (float)1000;
+            if(random < guide_rate){
+                int dx = ((end_x-guide_radius)<=0) ? (10) : (end_x-guide_radius);
+                int ux = ((guide_radius+end_x)>=nx_) ? (nx_-10) : (guide_radius+end_x);
+                int dy = ((end_y-guide_radius)<=0) ? (10) : (end_y-guide_radius);
+                int uy = ((end_y+guide_radius)>=ny_) ? (ny_ - 10) : (end_y+guide_radius);
+                px = MyRand(dx, ux);
+                py = MyRand(dy, uy);
+            }else{
+            px = MyRand(0, nx_);
+            py = MyRand(0, ny_);
+            }
+        }else{
+            px = MyRand(0, nx_);
+            py = MyRand(0, ny_);
+        }
+        // find_nearest node
+        int m_index = T.Find_Near(px, py);
+        int cx = T.Nodes_[m_index].x_;
+        int cy = T.Nodes_[m_index].y_;
+        if(is_legal(toIndex(px, py))){  // point legal
+            if(is_not_col(cx, cy, px, py)){  // no obstacle between them
+                int new_index = toward(cx, cy, px, py); // toward one step;
+                int ccx = new_index % nx_, ccy = new_index / nx_;
+
+                if(!T.IfExist(new_index)){
+                    T.AddNode(ccx, ccy, new_index, m_index);
+                    ROS_WARN("%d %d",ccx,ccy);
+                    potential[new_index] = arr_pot;
+                }
+                //判断结束
+                for(int i = 0; i < ET.length; i++){
+                    int ex = ET.Nodes_[i].x_;
+                    int ey = ET.Nodes_[i].y_;
+                    int dx = abs(ccx - ex);
+                    int dy = abs(ccy - ey);
+                    if(dx < arrive_offset && dy < arrive_offset && is_not_col(ccx,ccy,ex,ey)){
+                        st_node = T.length - 1;
+                        et_node = i;
+                        flag = 1;
+                        break;            // arrive
+                    }
+                }
+            }
+        }
+
+        if(m_use_goal_guide){
+            int random = rand() % 1000 / (float)1000;
+            if(random < guide_rate){
+                int dx = ((start_x-guide_radius)<=0) ? (10) : (start_x-guide_radius);
+                int ux = ((guide_radius+start_x)>=nx_) ? (nx_-10) : (guide_radius+start_x);
+                int dy = ((start_y-guide_radius)<=0) ? (10) : (start_y-guide_radius);
+                int uy = ((start_y+guide_radius)>=ny_) ? (ny_ - 10) : (start_y+guide_radius);
+                px = MyRand(dx, ux);
+                py = MyRand(dy, uy);
+            }else{
+            px = MyRand(0, nx_);
+            py = MyRand(0, ny_);
+            }
+        }else{
+            px = MyRand(0, nx_);
+            py = MyRand(0, ny_);
+        }
+
+        // find_nearest node
+        m_index = ET.Find_Near(px, py);
+        cx = ET.Nodes_[m_index].x_;
+        cy = ET.Nodes_[m_index].y_;
+        if(is_legal(toIndex(px, py))){  // point legal
+            if(is_not_col(cx, cy, px, py)){  // no obstacle between them
+                int new_index = toward(cx, cy, px, py); // toward one step;
+                int ccx = new_index % nx_, ccy = new_index / nx_;
+                if(!ET.IfExist(new_index)){
+                    ET.AddNode(ccx, ccy, new_index, m_index);
+                    potential[new_index] = arr_pot;
+                }
+                //判断结束
+                for(int i = 0; i < T.length; i++){
+                    int ex = T.Nodes_[i].x_;
+                    int ey = T.Nodes_[i].y_;
+                    int dx = abs(ccx - ex);
+                    int dy = abs(ccy - ey);
+                    if(dx < arrive_offset && dy < arrive_offset && is_not_col(ccx,ccy,ex,ey)){
+                        st_node = i;
+                        et_node = ET.length - 1;
+                        flag = 1;
+                        break;            // arrive
+                    }
+                }
+            }
+        }
     }
+    Node* cur = &ET.Nodes_[et_node];
+    T.AddNode(cur->x_,cur->y_,cur->index_,st_node);
+    while(cur ->index_ != goal_i){
+        cur = &ET.Nodes_[cur->father_];
+        T.AddNode(cur->x_,cur->y_,cur->index_,T.length - 1);
+    }
+
+    return true;
+}
+bool RRTExpansion::single_rrt(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
+                                        int num_of_ptcs, float* potential) 
+{
+    std::fill(potential, potential + ns_, POT_HIGH);
+    srand((unsigned)time(NULL));   
+    costs = costs_;
+    start_x = start_x1;
+    start_y = start_y1;
+    end_x = end_x1;
+    end_y = end_y1;
+ //   ROS_WARN("into cal");
+ //   std::fill(potential, potential + ns_, POT_HIGH);  // about potential
+    //num_of_ptcs = 5000
+    int arr_pot = 10;
+
+	//costs is the whole costmap
+    int start_i = toIndex(start_x, start_y);
+    potential[start_i] = arr_pot;
+
+    T.AddNode(start_x, start_y, start_i, start_i);       //father is itself
+ //   ROS_WARN("start_x : %d %d",start_x,start_y);
+  //  ROS_WARN("end_x: %d %d",end_x,end_y);
+    int goal_i = toIndex(end_x, end_y);
+    int cycle = 0;
+    end_tree_index = 0;  // store the end node index
+//    ROS_WARN("into while");
+    while (true) {
+        int px = MyRand(0, nx_);
+        int py = MyRand(0, ny_);
+        if(m_use_goal_guide){
+            int random = rand() % 1000 / (float)1000;
+            if(random < guide_rate){
+                int dx = ((end_x-guide_radius)<=0) ? (10) : (end_x-guide_radius);
+                int ux = ((guide_radius+end_x) >= nx_) ? (nx_-10) : (guide_radius+end_x);
+                int dy = ((end_y-guide_radius)<=0) ? (10) : (end_y-guide_radius);
+                int uy = ((end_y+guide_radius)>=ny_) ? (ny_ - 10) : (end_y+guide_radius);
+                px = MyRand(dx, ux);
+                py = MyRand(dy, uy);
+            }else{
+            px = MyRand(0, nx_);
+            py = MyRand(0, ny_);
+            }
+        }else{
+            px = MyRand(0, nx_);
+            py = MyRand(0, ny_);
+        }
+        // find_nearest node
+        int m_index = T.Find_Near(px, py);
+        int cx = T.Nodes_[m_index].x_;
+        int cy = T.Nodes_[m_index].y_;
+        if(is_legal(toIndex(px, py))){  // point legal
+            if(is_not_col(cx, cy, px, py)){  // no obstacle between them
+                int new_index = toward(cx, cy, px, py); // toward one step;
+                int ccx = new_index % nx_, ccy = new_index / nx_;
+                if(!T.IfExist(new_index)){
+                    T.AddNode(ccx, ccy, new_index, m_index);
+                }
+                potential[new_index] = arr_pot;
+                int dx = abs(ccx - end_x);
+                int dy = abs(ccy - end_y);
+                if(dx < arrive_offset && dy < arrive_offset){
+                    T.AddNode(end_x, end_y, goal_i, T.length - 1);  // add endnode to tree
+                    end_tree_index = T.length - 1;
+                    potential[goal_i] = arr_pot;
+                    break;            // arrive
+                }
+            }
+        }
+    }
+   return true;
+}
+
 } //end namespace global_planner
