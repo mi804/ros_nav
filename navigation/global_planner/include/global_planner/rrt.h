@@ -110,6 +110,7 @@ class RRTExpansion : public Expander
                                 float* potential);
         bool connect_rrt(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
                                 float* potential);
+        bool cut_bridge();
 };
 
 

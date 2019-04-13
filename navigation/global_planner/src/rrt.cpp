@@ -47,14 +47,13 @@ bool RRTExpansion::calculatePotentials(unsigned char* costs_, double start_x1, d
             costs_[i - ny_ - 2] = lethal_cost_ + 1;
         }
     }
-    ROS_ERROR("%d",lethal_cost_ + 1);
     m_use_goal_guide = use_goal_guide;
     if(use_connect){
         connect_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential);
     }else{
         single_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential);
     }
-
+    cut_bridge();
     return true;
 }
 
@@ -216,7 +215,7 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
         int px = MyRand(0, nx_);
         int py = MyRand(0, ny_);
         if(m_use_goal_guide){
-            int random = rand() % 1000 / (float)1000;
+            double random = rand() % 1000 / (float)1000;
             if(random < guide_rate){
                 int dx = ((end_x-guide_radius)<=0) ? (10) : (end_x-guide_radius);
                 int ux = ((guide_radius+end_x)>=nx_) ? (nx_-10) : (guide_radius+end_x);
@@ -243,7 +242,6 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
 
                 if(!T.IfExist(new_index)){
                     T.AddNode(ccx, ccy, new_index, m_index);
-                    ROS_WARN("%d %d",ccx,ccy);
                     potential[new_index] = arr_pot;
                 }
                 //判断结束
@@ -263,7 +261,7 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
         }
 
         if(m_use_goal_guide){
-            int random = rand() % 1000 / (float)1000;
+            double random = rand() % 1000 / (float)1000;
             if(random < guide_rate){
                 int dx = ((start_x-guide_radius)<=0) ? (10) : (start_x-guide_radius);
                 int ux = ((guide_radius+start_x)>=nx_) ? (nx_-10) : (guide_radius+start_x);
@@ -347,7 +345,7 @@ bool RRTExpansion::single_rrt(unsigned char* costs_, double start_x1, double sta
         int px = MyRand(0, nx_);
         int py = MyRand(0, ny_);
         if(m_use_goal_guide){
-            int random = rand() % 1000 / (float)1000;
+            double random = rand() % 1000 / (float)1000;
             if(random < guide_rate){
                 int dx = ((end_x-guide_radius)<=0) ? (10) : (end_x-guide_radius);
                 int ux = ((guide_radius+end_x) >= nx_) ? (nx_-10) : (guide_radius+end_x);
@@ -388,5 +386,49 @@ bool RRTExpansion::single_rrt(unsigned char* costs_, double start_x1, double sta
     }
    return true;
 }
+bool RRTExpansion::cut_bridge(){
+    Node * cur = &T.Nodes_[T.length - 1];
+    Node * fa = &T.Nodes_[T.length - 1];
+    Node * grandpa;
+    int flag = 1;
+    while(true){
+        if(flag == 0){
+            break;
+        }
+        flag = 0;
+        ROS_INFO("into improve");
+        cur = &T.Nodes_[T.length - 1];
+        fa = &T.Nodes_[cur->father_];
+        grandpa = &T.Nodes_[fa->father_];
+        while(T.Nodes_[cur->father_].index_ != toIndex(start_x,start_y)){
+            if(is_not_col(grandpa->x_,grandpa->y_,cur->x_,cur->y_)){
+                cur->father_ = fa->father_;
+                fa = &T.Nodes_[cur->father_];
+                grandpa = &T.Nodes_[fa->father_];
+                flag = 1;
+                ROS_WARN("cut");
+            }else{
+                cur = &T.Nodes_[cur->father_];
+                fa = &T.Nodes_[cur->father_];
+                grandpa = &T.Nodes_[fa->father_];
+            }
+        }
+    }
+        cur = &T.Nodes_[T.length - 1];
+        fa = &T.Nodes_[cur->father_];
+        grandpa = &T.Nodes_[fa->father_];
+        while(cur->index_ != toIndex(start_x,start_y)){
+            if(is_not_col(grandpa->x_,grandpa->y_,cur->x_,cur->y_)){
+                cur->father_ = fa->father_;
+                fa = &T.Nodes_[cur->father_];
+                grandpa = &T.Nodes_[fa->father_];
+            }else{
+                cur = &T.Nodes_[cur->father_];
+                fa = &T.Nodes_[cur->father_];
+                grandpa = &T.Nodes_[fa->father_];
+            }
+        }
 
+        ROS_INFO("after improve");
+}
 } //end namespace global_planner
