@@ -58,7 +58,7 @@ class DijkstraExpansion : public Expander {
         DijkstraExpansion(PotentialCalculator* p_calc, int nx, int ny);
         ~DijkstraExpansion();
         bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential,bool,bool);
+                                float* potential,bool,bool,bool);
         bool calculatePlan(std::vector<std::pair<float, float> >& path){
             return false;
         }

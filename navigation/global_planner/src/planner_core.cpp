@@ -146,6 +146,8 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         use_path_maker = !use_rrt;
         private_nh.param("use_goal_guide", use_goal_guide, true);
         private_nh.param("use_connect", use_connect, true);
+        use_cut_bridge = false;
+        private_nh.param("use_cut_bridge", use_cut_bridge, false);
         if (use_rrt)
         {
             if(use_dijkstra || use_astar)
@@ -329,7 +331,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     ROS_WARN("after init");
     // make plan, 计算得到peotential
     bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
-                                                    nx * ny * 2, potential_array_,use_connect,use_goal_guide);
+                                                    nx * ny * 2, potential_array_,use_connect,use_goal_guide,use_cut_bridge);
     ROS_WARN("found_legal: %d",found_legal);
     if(!old_navfn_behavior_)
     //  planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);

@@ -18,49 +18,61 @@ namespace global_planner {
 
 RRTExpansion::RRTExpansion(PotentialCalculator* p_calc, int xs, int ys) :
     Expander(p_calc, xs, ys),T(ns_),ET(ns_) {
-    step_size = 5;
-    arrive_offset = 5;
+    step_size = nx_/100;
+    arrive_offset = 10;
     guide_radius = 50;
-    guide_rate = 0.5;
+    guide_rate = 0.1;
 }
 //Expander need to be rewrite
 
 bool RRTExpansion::calculatePotentials(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
-                                        int num_of_ptcs, float* potential,bool use_connect = false, bool use_goal_guide = true) {
+                                        int num_of_ptcs, float* potential,bool use_connect = false, bool use_goal_guide = true ,bool use_cut_bridge = false) {
 // for obs inflation
     // int i_costs;
-    for(int i = 0; i < ns_ - nx_ - ny_; i++ ){
-        if(costs_[i] == lethal_cost_){
-            costs_[i + 1] = lethal_cost_ + 1;
-            costs_[i - 1] = lethal_cost_ + 1;
-            costs_[i + 2] = lethal_cost_ + 1;
-            costs_[i - 2] = lethal_cost_ + 1;
-            costs_[i + ny_] = lethal_cost_ + 1;
-            costs_[i - ny_] = lethal_cost_ + 1;
-            costs_[i + ny_ + 1] = lethal_cost_ + 1;
-            costs_[i + ny_ - 1] = lethal_cost_ + 1;
-            costs_[i - ny_ + 1] = lethal_cost_ + 1;
-            costs_[i - ny_ - 1] = lethal_cost_ + 1;
-            costs_[i + ny_ + 2] = lethal_cost_ + 1;
-            costs_[i + ny_ - 2] = lethal_cost_ + 1;
-            costs_[i - ny_ + 2] = lethal_cost_ + 1;
-            costs_[i - ny_ - 2] = lethal_cost_ + 1;
-        }
-    }
+    // for(int i = 0; i < ns_ - 2* nx_ - ny_; i++ ){
+    //     ROS_WARN("%d",costs_[i]);
+    //     if(costs_[i] >= lethal_cost_){
+
+    //         // costs_[i + 1] = (lethal_cost_  -1) ? (costs_[i + 1] < lethal_cost_): lethal_cost_;
+    //         // costs_[i - 1] = (lethal_cost_  -1) ? (costs_[i - 1] < lethal_cost_): lethal_cost_;
+    //         // costs_[i + 2] = (lethal_cost_  -1 )? (costs_[i + 2] < lethal_cost_): lethal_cost_;
+    //         // costs_[i - 2] = (lethal_cost_  -1 )? (costs_[i - 2] < lethal_cost_): lethal_cost_;
+    //         // costs_[i + nx_] = (lethal_cost_  -1) ? (costs_[i + nx_]  < lethal_cost_): lethal_cost_;
+    //         // costs_[i - nx_] = (lethal_cost_  -1) ? (costs_[i - nx_]  < lethal_cost_): lethal_cost_;
+    //         // costs_[i + 2*nx_] = (lethal_cost_  -1) ? (costs_[i + 2*nx_] < lethal_cost_): lethal_cost_;
+    //         // costs_[i - 2*nx_] = (lethal_cost_  -1) ? (costs_[i - 2*nx_]  < lethal_cost_): lethal_cost_;
+    //         // costs_[i + nx_ + 1] = (lethal_cost_  -1) ? (costs_[i + nx_ + 1] < lethal_cost_): lethal_cost_;
+    //         // costs_[i + nx_ - 1] = (lethal_cost_  -1) ? (costs_[i + nx_ - 1] < lethal_cost_): lethal_cost_;
+    //         // costs_[i - nx_ + 1] = (lethal_cost_  -1) ? (costs_[i - nx_ + 1]< lethal_cost_): lethal_cost_;
+    //         // costs_[i - nx_ - 1] = (lethal_cost_  -1 )? (costs_[i - nx_ - 1] < lethal_cost_): lethal_cost_;
+    //         // costs_[i + nx_ + 2] = (lethal_cost_  -1 )? (costs_[i + nx_ + 2]  < lethal_cost_): lethal_cost_;
+    //         // costs_[i + nx_ - 2] = (lethal_cost_  -1 )? (costs_[i + nx_ - 2] < lethal_cost_): lethal_cost_;
+    //         // costs_[i - nx_ + 2] = (lethal_cost_  -1 )? (costs_[i - nx_ + 2] < lethal_cost_): lethal_cost_;
+    //         // costs_[i - nx_ - 2] = (lethal_cost_  -1) ? (costs_[i - nx_ - 2] < lethal_cost_): lethal_cost_;
+    //     }
+    // }
+    ROS_INFO("%d,%d,%d",nx_,ny_,ns_);
     m_use_goal_guide = use_goal_guide;
     if(use_connect){
-        connect_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential);
+        if (!connect_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential)){
+            return false;
+        }
     }else{
-        single_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential);
+        if(!single_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential)){
+            return false;
+        }
     }
-    cut_bridge();
+    if(use_cut_bridge){
+        cut_bridge();
+    }
+
     return true;
 }
 
 bool RRTExpansion::calculatePlan(std::vector<std::pair<float, float> >& path){
     Node *pre = &T.Nodes_[T.length - 1];
     Node *cur = &T.Nodes_[T.length - 1];
-     std::pair<float, float> current;
+    std::pair<float, float> current;
     current.first = end_x;
     current.second = end_y;
     path.push_back(current);
@@ -91,7 +103,7 @@ bool RRTExpansion::improvePlan(std::vector<std::pair<float, float> >& path){
     }
     int k=0;
     while(true){
-            // ROS_ERROR("%d",bool(pre == path.end()-1));
+            // ROS_ERROR("%d",bool(pre == path.end()-1)); nx_, ny_, ns_
             // ROS_INFO("path.end()-1=%f, %f\n",(*(path.end()-1)).first, (*(path.end()-1)).second);
             // ROS_INFO("pre=%f, %f\n",(*pre).first, (*pre).second);
         for(cur; cur != pre+2; cur --){
@@ -129,7 +141,11 @@ int RRTExpansion::MyRand(int low, int high){
     return a;
 }
 bool RRTExpansion::is_legal(int ind){
-    if(costs[ind]>=lethal_cost_ && !(unknown_ && costs[ind]==costmap_2d::NO_INFORMATION))
+    if(ind<2||ind>ns_-2){
+        return false;
+    }
+    //&& !(unknown_ && costs[ind]==costmap_2d::NO_INFORMATION)
+    if(costs[ind]>=(lethal_cost_ -2))
     {
         return false;
     }else{
@@ -137,32 +153,35 @@ bool RRTExpansion::is_legal(int ind){
     }
 }
 bool RRTExpansion::is_not_col(int startx, int starty, int endx, int endy){
-    int step = 2;
+    int step = 1;
     int  cx = startx;
     int cy = starty;
     int i = 0;
     double xd = 1.0;
     double yd = 1.0;
     if(endx < startx) xd = -1.0;
-    if(endy > starty) yd = -1.0;
-    double dx = abs(endx - startx);
-    double dy = abs(endy - starty);
+    if(endy < starty) yd = -1.0;
+    double dx = fabs(endx - startx);
+    double dy = fabs(endy - starty);
     double theta = atan(dy/dx);
     double length = sqrt(dx * dx + dy * dy);
     int cycle = int(length / step);
-    for(int i = 0; i < cycle; i++ ){
-        int new_x = int (startx + xd * step * i/length * dx);
-        int new_y = int (starty + yd * step * i /length * dy);
-        if(!is_legal(toIndex(new_x,new_y))){
-            return false;
+        for(int i = 0; i <= cycle; i++ ){
+                    // int new_x = int (startx + xd * step * i *cos(theta));
+                    // int new_y = int (startx + xd * step * i *sin(theta));
+            int new_x = int (startx + xd * (step * i / length) * dx);
+            int new_y = int (starty + yd * (step * i / length) * dy);
+            if(!is_legal(toIndex(new_x,new_y))){
+                return false;
+            }
         }
-    }
+
     return true;
 }
 
 
 int RRTExpansion::toward(int startx, int starty, int endx, int endy){
-    if(sqrt(1.0 * abs(startx - endx) + 1.0 * abs(starty - endy)) < step_size){
+    if(sqrt(1.0 * abs(startx - endx)* abs(startx - endx) + 1.0 * abs(starty - endy)*abs(starty - endy)) < step_size){
         return toIndex(endx, endy);}
     double xd = 1.0;
     double yd = 1.0;
@@ -171,12 +190,13 @@ int RRTExpansion::toward(int startx, int starty, int endx, int endy){
     double dx = abs(endx - startx);
     double dy = abs(endy - starty);
     double len = sqrt(dx*dx+dy*dy);
-    int new_x = int (startx + xd * 1.0 * step_size / len * dx);
-    int new_y = int (starty + yd * 1.0 * step_size / len * dy);
+    int new_x = int (startx + xd * 1.0 * (1.0*step_size / len) * dx );
+    int new_y = int (starty + yd * 1.0 * (1.0* step_size / len) * dy );
     return toIndex(new_x,new_y);
 }
 void RRTExpansion::Reclear(){
     T.Clear();
+    ET.Clear();
 }
 bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
                                         int num_of_ptcs, float* potential) 
@@ -208,6 +228,7 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
     ROS_WARN("into while");
     int flag = 0;
     while (true) {
+
         if(flag == 1){
             break;
             //end;
@@ -239,12 +260,15 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
             if(is_not_col(cx, cy, px, py)){  // no obstacle between them
                 int new_index = toward(cx, cy, px, py); // toward one step;
                 int ccx = new_index % nx_, ccy = new_index / nx_;
-
-                if(!T.IfExist(new_index)){
+                if(!is_legal(new_index))    continue;
+           //     if(!T.IfExist(new_index)){
                     T.AddNode(ccx, ccy, new_index, m_index);
                     potential[new_index] = arr_pot;
-                }
+           //     }
                 //判断结束
+                if(T.length >= T.max_length /10){
+                return false;
+                }
                 for(int i = 0; i < ET.length; i++){
                     int ex = ET.Nodes_[i].x_;
                     int ey = ET.Nodes_[i].y_;
@@ -286,10 +310,14 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
             if(is_not_col(cx, cy, px, py)){  // no obstacle between them
                 int new_index = toward(cx, cy, px, py); // toward one step;
                 int ccx = new_index % nx_, ccy = new_index / nx_;
-                if(!ET.IfExist(new_index)){
+                if(!is_legal(new_index))    continue;
+            //    if(!ET.IfExist(new_index)){
                     ET.AddNode(ccx, ccy, new_index, m_index);
                     potential[new_index] = arr_pot;
-                }
+              //  }
+                    if(ET.length >= ET.max_length/10){
+                        return false;
+                    }
                 //判断结束
                 for(int i = 0; i < T.length; i++){
                     int ex = T.Nodes_[i].x_;
@@ -345,7 +373,7 @@ bool RRTExpansion::single_rrt(unsigned char* costs_, double start_x1, double sta
         int px = MyRand(0, nx_);
         int py = MyRand(0, ny_);
         if(m_use_goal_guide){
-            double random = rand() % 1000 / (float)1000;
+            double random = MyRand(0,1000) / (float)1000;
             if(random < guide_rate){
                 int dx = ((end_x-guide_radius)<=0) ? (10) : (end_x-guide_radius);
                 int ux = ((guide_radius+end_x) >= nx_) ? (nx_-10) : (guide_radius+end_x);
@@ -361,7 +389,7 @@ bool RRTExpansion::single_rrt(unsigned char* costs_, double start_x1, double sta
             px = MyRand(0, nx_);
             py = MyRand(0, ny_);
         }
-        // find_nearest node
+        //find_nearest node
         int m_index = T.Find_Near(px, py);
         int cx = T.Nodes_[m_index].x_;
         int cy = T.Nodes_[m_index].y_;
@@ -369,8 +397,16 @@ bool RRTExpansion::single_rrt(unsigned char* costs_, double start_x1, double sta
             if(is_not_col(cx, cy, px, py)){  // no obstacle between them
                 int new_index = toward(cx, cy, px, py); // toward one step;
                 int ccx = new_index % nx_, ccy = new_index / nx_;
-                if(!T.IfExist(new_index)){
-                    T.AddNode(ccx, ccy, new_index, m_index);
+                if(!is_legal(new_index))    continue;
+                if(!is_not_col(cx, cy, ccx, ccy))    continue;
+                T.AddNode(ccx, ccy, new_index, m_index);
+                // if(!T.IfExist(new_index)){
+                //     T.AddNode(ccx, ccy, new_index, m_index);
+                // }else{
+                //     continue;
+                // }
+                if(T.length >= T.max_length/10){
+                    return false;
                 }
                 potential[new_index] = arr_pot;
                 int dx = abs(ccx - end_x);
@@ -430,5 +466,6 @@ bool RRTExpansion::cut_bridge(){
         }
 
         ROS_INFO("after improve");
+        ROS_INFO("length: %d",T.length);
 }
 } //end namespace global_planner

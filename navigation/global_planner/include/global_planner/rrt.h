@@ -81,7 +81,7 @@ class RRTExpansion : public Expander
     public:
         RRTExpansion(PotentialCalculator* p_calc, int nx, int ny);
         bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential,bool,bool);
+                                float* potential,bool,bool,bool);
         bool calculatePlan(std::vector<std::pair<float, float> >& path);
         bool improvePlan(std::vector<std::pair<float, float> >& path);
         //calculatePotentials need to be rewrite
@@ -99,7 +99,7 @@ class RRTExpansion : public Expander
         int end_y;
         int guide_radius;
         bool m_use_goal_guide;
-
+        bool m_use_cut_bridge;
         float guide_rate;
         Tree T;
         Tree ET;
