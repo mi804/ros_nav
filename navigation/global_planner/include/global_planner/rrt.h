@@ -72,6 +72,18 @@ class Tree{
             }
             return false;
         }
+        int calculateCost(Tree n_T, int id, int start_i){
+            Node *pre = &n_T.Nodes_[id];
+            Node *cur = &n_T.Nodes_[id];
+            int sum_of_cost = 0;
+            while (cur->index_ != start_i) {
+                cur = &n_T.Nodes_[cur->father_];
+                sum_of_cost += abs(pre->x_ - cur->x_)*abs(pre->x_ - cur->x_)+
+                abs(pre->y_ - cur->x_)*abs(pre->y_ - cur->x_);
+                pre = cur;
+            }
+            return sum_of_cost;
+        }
 };
 
 
@@ -81,7 +93,7 @@ class RRTExpansion : public Expander
     public:
         RRTExpansion(PotentialCalculator* p_calc, int nx, int ny);
         bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential,bool,bool,bool);
+                                float* potential,bool,bool,bool,bool);
         bool calculatePlan(std::vector<std::pair<float, float> >& path);
         bool improvePlan(std::vector<std::pair<float, float> >& path);
         //calculatePotentials need to be rewrite
@@ -98,6 +110,7 @@ class RRTExpansion : public Expander
         int end_x;
         int end_y;
         int guide_radius;
+        int explore_radius;
         bool m_use_goal_guide;
         bool m_use_cut_bridge;
         float guide_rate;
@@ -106,17 +119,16 @@ class RRTExpansion : public Expander
 
         unsigned char* costs;
         int end_tree_index;
-        bool single_rrt(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential);
-        bool connect_rrt(unsigned char* costs, double start_x, double start_y, double end_x, double end_y, int cycles,
-                                float* potential);
+        bool single_rrt(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
+                                    int num_of_ptcs, float* potential);
+        bool single_rrt_star(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
+                                    int num_of_ptcs, float* potential);
+        bool connect_rrt(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
+                                    int num_of_ptcs, float* potential);
         bool cut_bridge();
 };
 
 
 
 } //end namespace global_planner
-
-
-
 #endif

@@ -209,6 +209,7 @@ class GlobalPlanner : public nav_core::BaseGlobalPlanner {
         bool use_connect;
         bool use_goal_guide;
         bool use_cut_bridge;
+        bool use_rrt_star;
 };
 
 } //end namespace global_planner

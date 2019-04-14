@@ -50,7 +50,7 @@ class Expander {
             setSize(nx, ny);
         }
         virtual bool calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
-                                        int cycles, float* potential,bool,bool,bool) = 0;
+                                        int cycles, float* potential,bool,bool,bool,bool) = 0;
         virtual bool calculatePlan(std::vector<std::pair<float, float> >& path) = 0;
         virtual bool improvePlan(std::vector<std::pair<float, float> >& path) = 0;
         /**
