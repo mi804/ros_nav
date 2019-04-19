@@ -1,16 +1,17 @@
 GlobalPlanner:                                  # Also see: http://wiki.ros.org/global_planner
   old_navfn_behavior: false                     # Exactly mirror behavior of navfn, use defaults for other boolean parameters, default false
   use_quadratic: true                           # Use the quadratic approximation of the potential. Otherwise, use a simpler calculation, default true
+  use_grid_path: true                          # Create a path that follows the grid boundaries. Otherwise, use a gradient descent method, default false
+
+# params to be changed
   use_dijkstra: false                           # Use dijkstra's algorithm. default false
   use_astar: false                           # Use astar's algorithm.  default true
   use_rrt: true                                 # use rrt algorithm
-  use_grid_path: true                          # Create a path that follows the grid boundaries. Otherwise, use a gradient descent method, default false
-#  use_path_maker: true          #必须这个参数也要改               # generate path by planner, not by potential descend, must for rrt
-  # use_improved_path: false                       #use improved path or not
   use_goal_guide: true
   use_connect: false
   use_cut_bridge : true
   use_rrt_star : true
+########
 
   allow_unknown: true                           # Allow planner to plan through unknown space, default true
                                                 # Needs to have track_unknown_space: true in the obstacle / voxel layer (in costmap_commons_param) to work

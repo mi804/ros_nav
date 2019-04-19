@@ -21,21 +21,28 @@ RRTExpansion::RRTExpansion(PotentialCalculator* p_calc, int xs, int ys) :
     step_size = nx_/100;
     arrive_offset = 10;
     guide_radius = 50;
-    guide_rate = 0.1;
+    guide_rate = 0.5;
     explore_radius = 14;
 }
-//Expander need to be rewrite
 
 bool RRTExpansion::calculatePotentials(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
                                         int num_of_ptcs, float* potential,bool use_connect = false, bool use_goal_guide = true, 
                                         bool use_cut_bridge = false, bool use_rrt_star = false) {
+    clock_t start_clock = clock();
+    T.Clear();
+    ET.Clear();
+    clock_t end_clock = clock();
+    double run_time = (double)(end_clock - start_clock)/ CLOCKS_PER_SEC * 1000;
+    ROS_WARN("clear two tree costs: %f ms  ",run_time);
 
-    ROS_INFO("%d,%d,%d",nx_,ny_,ns_);
+    //ROS_INFO("map size: %d,%d,%d",nx_,ny_,ns_);
     m_use_goal_guide = use_goal_guide;
     if(use_connect){
+        ROS_WARN("RRT connect");
         if (!connect_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential)){
             return false;
         }
+        ROS_WARN("DONE RRT connect");
     }else if(use_rrt_star){
         ROS_WARN("RRT*");
         if(!single_rrt_star(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential)){
@@ -43,12 +50,16 @@ bool RRTExpansion::calculatePotentials(unsigned char* costs_, double start_x1, d
         }
         ROS_WARN("DONE RRT*");
     }else{
+        ROS_WARN("RRT");
         if(!single_rrt(costs_,start_x1,start_y1,end_x1,end_y1,num_of_ptcs,potential)){
             return false;
         }
+        ROS_WARN("DONE RRT");
     }
     if(use_cut_bridge){
+        ROS_WARN("SMOOTH");
         cut_bridge();
+        ROS_WARN("DONE SMOOTH");
     }
 
     return true;
@@ -84,7 +95,7 @@ bool RRTExpansion::improvePlan(std::vector<std::pair<float, float> >& path){
     std::vector<std::pair<float, float> >::iterator itev = path.begin();
     int c = 0;
     for(itev;itev != cur;itev ++){
-        ROS_WARN("%f, %f\n",(*itev).first, (*itev).second);
+        //ROS_WARN("%f, %f\n",(*itev).first, (*itev).second);
     }
     int k=0;
     while(true){
@@ -97,8 +108,8 @@ bool RRTExpansion::improvePlan(std::vector<std::pair<float, float> >& path){
                 path.erase(pre+1, cur);
                 pre = cur;
                 cur = path.end()-1;
-                ROS_INFO("%d:cur=%f, %f\n",k,(*cur).first, (*cur).second);
-                ROS_INFO("%d:pre=%f, %f\n",k,(*pre).first, (*pre).second);
+                //ROS_INFO("%d:cur=%f, %f\n",k,(*cur).first, (*cur).second);
+                //ROS_INFO("%d:pre=%f, %f\n",k,(*pre).first, (*pre).second);
                 break;
             }
         }
@@ -111,7 +122,7 @@ bool RRTExpansion::improvePlan(std::vector<std::pair<float, float> >& path){
     }
 
     for(itev = path.begin();itev != cur;itev ++){
-        ROS_WARN("%f, %f\n",(*itev).first, (*itev).second);
+        //ROS_WARN("%f, %f\n",(*itev).first, (*itev).second);
     }
     if(c++>ns_*4){
         return false;
@@ -186,10 +197,6 @@ void RRTExpansion::Reclear(){
 bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,
                                         int num_of_ptcs, float* potential) 
 {
-
-    T.Clear();
-    ET.Clear();
-
     std::fill(potential, potential + ns_, POT_HIGH);
     srand((unsigned)time(NULL));   
     costs = costs_;
@@ -210,7 +217,6 @@ bool RRTExpansion::connect_rrt(unsigned char* costs_, double start_x1, double st
     int st_node;
     int et_node;
     int cycle = 0;
-    ROS_WARN("into while");
     int flag = 0;
     while (true) {
 
@@ -418,7 +424,6 @@ bool RRTExpansion::cut_bridge(){
             break;
         }
         flag = 0;
-        ROS_INFO("into improve");
         cur = &T.Nodes_[T.length - 1];
         fa = &T.Nodes_[cur->father_];
         grandpa = &T.Nodes_[fa->father_];
@@ -428,7 +433,6 @@ bool RRTExpansion::cut_bridge(){
                 fa = &T.Nodes_[cur->father_];
                 grandpa = &T.Nodes_[fa->father_];
                 flag = 1;
-                ROS_WARN("cut");
             }else{
                 cur = &T.Nodes_[cur->father_];
                 fa = &T.Nodes_[cur->father_];
@@ -450,9 +454,6 @@ bool RRTExpansion::cut_bridge(){
                 grandpa = &T.Nodes_[fa->father_];
             }
         }
-
-        ROS_INFO("after improve");
-        ROS_INFO("length: %d",T.length);
 }
 
 bool RRTExpansion::single_rrt_star(unsigned char* costs_, double start_x1, double start_y1, double end_x1, double end_y1,

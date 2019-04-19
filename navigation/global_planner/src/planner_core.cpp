@@ -47,6 +47,7 @@
 #include <global_planner/gradient_path.h>
 #include <global_planner/quadratic_calculator.h>
 
+#include <time.h>
 //register this planner as a BaseGlobalPlanner plugin
 PLUGINLIB_EXPORT_CLASS(global_planner::GlobalPlanner, nav_core::BaseGlobalPlanner)
 
@@ -329,12 +330,18 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     potential_array_ = new float[nx * ny];
 
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
-    ROS_WARN("after init");
     // make plan, 计算得到peotential
-    bool found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
-                                                    nx * ny * 2, potential_array_,use_connect,use_goal_guide,
-                                                    use_cut_bridge,use_rrt_star);
-    ROS_WARN("found_legal: %d",found_legal);
+    clock_t start_clock = clock();
+    bool found_legal;
+    for(int i = 0; i < 20; i++){
+        found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
+                                                        nx * ny * 2, potential_array_,use_connect,use_goal_guide,
+                                                        use_cut_bridge,use_rrt_star);
+    }
+    clock_t end_clock = clock();
+    double run_time = (double)(end_clock - start_clock)/ CLOCKS_PER_SEC * 1000;
+    ROS_WARN("calculate time: %f ms for 20 times! ",run_time);
+    ROS_WARN("calculate time: %f ms for 1 time!",run_time/20);
     if(!old_navfn_behavior_)
     //  planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
     //这是什么
