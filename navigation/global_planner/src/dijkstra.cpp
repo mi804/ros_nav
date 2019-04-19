@@ -78,7 +78,9 @@ void DijkstraExpansion::setSize(int xs, int ys) {
 //
 
 bool DijkstraExpansion::calculatePotentials(unsigned char* costs, double start_x, double start_y, double end_x, double end_y,
-                                           int cycles, float* potential,bool,bool,bool,bool) {
+                                           int cycles, float* potential,bool use_connect = false, bool use_goal_guide = true, 
+                                        bool use_cut_bridge = false, bool use_rrt_star = false) {
+    ROS_WARN("using dijk");
     cells_visited_ = 0;
     // priority buffers
     threshold_ = lethal_cost_;

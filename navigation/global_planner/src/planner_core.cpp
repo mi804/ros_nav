@@ -162,8 +162,6 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
                 ROS_WARN("using rrt");
             }                
         }
-        else
-            planner_ = new AStarExpansion(p_calc_, cx, cy);
         
         bool use_grid_path;
         private_nh.param("use_grid_path", use_grid_path, false);
