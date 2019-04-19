@@ -176,13 +176,14 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2D* costmap,
         plan_pub_ = private_nh.advertise<nav_msgs::Path>("plan", 1);
         potential_pub_ = private_nh.advertise<nav_msgs::OccupancyGrid>("potential", 1);    
         //这里可以看到potential用于 occupancy grid
+
         private_nh.param("allow_unknown", allow_unknown_, true);
         planner_->setHasUnknown(allow_unknown_);
         private_nh.param("planner_window_x", planner_window_x_, 0.0);
         private_nh.param("planner_window_y", planner_window_y_, 0.0);
         private_nh.param("default_tolerance", default_tolerance_, 0.0);
         private_nh.param("publish_scale", publish_scale_, 100);
-
+        private_nh.param("test_run_times", test_run_times, 1);
         make_plan_srv_ = private_nh.advertiseService("make_plan", &GlobalPlanner::makePlanService, this);
 
         dsrv_ = new dynamic_reconfigure::Server<global_planner::GlobalPlannerConfig>(ros::NodeHandle("~/" + name));
@@ -330,16 +331,17 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     outlineMap(costmap_->getCharMap(), nx, ny, costmap_2d::LETHAL_OBSTACLE);
     // make plan, 计算得到peotential
     clock_t start_clock = clock();
+
     bool found_legal;
-    for(int i = 0; i < 20; i++){
+    for(int i = 0; i < test_run_times; i++){
         found_legal = planner_->calculatePotentials(costmap_->getCharMap(), start_x, start_y, goal_x, goal_y,
                                                         nx * ny * 2, potential_array_,use_connect,use_goal_guide,
                                                         use_cut_bridge,use_rrt_star);
     }
     clock_t end_clock = clock();
     double run_time = (double)(end_clock - start_clock)/ CLOCKS_PER_SEC * 1000;
-    ROS_WARN("calculate time: %f ms for 20 times! ",run_time);
-    ROS_WARN("calculate time: %f ms for 1 time!",run_time/20);
+    ROS_WARN("calculate time: %f ms for %d times! ",run_time,test_run_times);
+    ROS_WARN("calculate time: %f ms for 1 time!",run_time/test_run_times);
     if(!old_navfn_behavior_)
     //  planner_->clearEndpoint(costmap_->getCharMap(), potential_array_, goal_x_i, goal_y_i, 2);
     //这是什么

@@ -4,13 +4,14 @@ GlobalPlanner:                                  # Also see: http://wiki.ros.org/
   use_grid_path: true                          # Create a path that follows the grid boundaries. Otherwise, use a gradient descent method, default false
 
 # params to be changed
-  use_dijkstra: false                           # Use dijkstra's algorithm. default false
-  use_astar: true                           # Use astar's algorithm.  default true
+  use_dijkstra: true                           # Use dijkstra's algorithm. default false
+  use_astar: false                           # Use astar's algorithm.  default true
   use_rrt: false                                 # use rrt algorithm
   use_goal_guide: false
   use_connect: false
   use_cut_bridge : false
   use_rrt_star : false
+  test_run_times: 1    #this para is for tester, function calculate_potential will run test_run_times times
 ########
 
   allow_unknown: true                           # Allow planner to plan through unknown space, default true
