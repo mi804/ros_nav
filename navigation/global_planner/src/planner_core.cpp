@@ -434,8 +434,15 @@ bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double 
             }
                 ROS_WARN("IMPROVE_PATH");
         }
-    }
 
+    }
+std::vector <std::pair<float,float> >::iterator itev = path.begin();
+double itev_c = 0;
+for(; itev != path.end()-1;++itev){
+    itev_c += sqrt( ((*itev).first - (*(itev+1)).first)*((*itev).first - (*(itev+1)).first)+
+    ((*itev).second - (*(itev+1)).second)*((*itev).second - (*(itev+1)).second) );
+}
+ROS_WARN("The whole cost is %lf",itev_c);
     //我们可以直接得到gridpath ，而不用path_maker，但要按照格式
     ros::Time plan_time = ros::Time::now();
     // path是从尾到头，plan是从头到尾
