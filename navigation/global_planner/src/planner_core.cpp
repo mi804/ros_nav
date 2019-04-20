@@ -408,7 +408,7 @@ bool GlobalPlanner::getPlanFromPotential(double start_x, double start_y, double 
                 "This planner has not been initialized yet, but it is being used, please call initialize() before use");
         return false;
     }
-
+for(int i=0;i<=test_run_times;++i){
     std::string global_frame = frame_id_;
 
     //clear the plan, just in case
@@ -464,6 +464,7 @@ ROS_WARN("The whole cost is %lf",itev_c);
         pose.pose.orientation.w = 1.0;
         plan.push_back(pose);
     }
+}
     if(old_navfn_behavior_){
             plan.push_back(goal);
     }
